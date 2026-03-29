@@ -2,7 +2,6 @@ import tkinter as tk
 from pynput.keyboard import Controller, Key
 
 # --- CONFIGURATION ---
-# List of keys to show. Use strings for letters or 'Key.space' for special keys.
 KEYS = [
     ['Q', 'W', 'E', 'R', 'T'],
     ['A', 'S', 'D', 'F', 'G'],
@@ -17,14 +16,28 @@ class VirtualKeyboard:
         
         # Window setup
         self.root.title("Custom ARM Keyboard")
-        self.root.attributes("-topmost", True)  # Always on top
-        self.root.overrideredirect(True)       # Remove window borders/title bar
-        self.root.geometry("+100+500")         # Initial position (x+y)
+        self.root.attributes("-topmost", True)
+        self.root.overrideredirect(True)
+        self.root.geometry("+100+500")
         
+        # Variables to track drag position
+        self._offset_x = 0
+        self._offset_y = 0
+
         self.create_widgets()
 
+    def start_drag(self, event):
+        """Capture initial mouse position relative to window."""
+        self._offset_x = event.x
+        self._offset_y = event.y
+
+    def do_drag(self, event):
+        """Update window position based on mouse movement."""
+        x = self.root.winfo_x() + (event.x - self._offset_x)
+        y = self.root.winfo_y() + (event.y - self._offset_y)
+        self.root.geometry(f"+{x}+{y}")
+
     def press_key(self, key_val):
-        """Simulates the key press into the active window."""
         try:
             if key_val == "Space":
                 self.keyboard.press(Key.space)
@@ -41,17 +54,27 @@ class VirtualKeyboard:
             print(f"Error pressing {key_val}: {e}")
 
     def create_widgets(self):
-        """Builds the UI grid based on the KEYS config."""
+        # 1. DRAG HANDLE (Full-width bar at the top)
+        drag_handle = tk.Label(self.root, text="⁝⁝ DRAG HERE ⁝⁝", bg="#222", fg="gray", cursor="fleur")
+        drag_handle.grid(row=0, column=0, columnspan=len(KEYS[0]), sticky='ew', pady=(0, 5))
+        
+        # Bind drag events to the handle
+        drag_handle.bind("<Button-1>", self.start_drag)
+        drag_handle.bind("<B1-Motion>", self.do_drag)
+
+        # 2. KEYBOARD KEYS
         for r, row in enumerate(KEYS):
             for c, key in enumerate(row):
                 btn = tk.Button(self.root, text=key, width=6, height=2,
                                 command=lambda k=key: self.press_key(k),
                                 bg="#333", fg="white", activebackground="#555")
-                btn.grid(row=r, column=c, padx=2, pady=2)
+                # r+1 because row 0 is the drag handle
+                btn.grid(row=r+1, column=c, padx=2, pady=2)
         
-        # Add a small 'drag' handle or close button
-        close_btn = tk.Button(self.root, text="X", command=self.root.destroy, bg="red", fg="white")
-        close_btn.grid(row=0, column=len(KEYS[0]), sticky='ne')
+        # 3. CLOSE BUTTON
+        close_btn = tk.Button(self.root, text="X", command=self.root.destroy, 
+                              bg="#800", fg="white", font=("Arial", 8, "bold"))
+        close_btn.grid(row=0, column=len(KEYS[0])-1, sticky='ne')
 
 if __name__ == "__main__":
     root = tk.Tk()
